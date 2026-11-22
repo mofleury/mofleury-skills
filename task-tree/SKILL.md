@@ -59,6 +59,8 @@ Labels: <label, label, ...>
 	after it.
 - A task with subtasks is `active` while any of them is, and `done` once all of them are `done` or `dropped`. Its
 	status changes only when its own state does.
+- Labels are added only when the user asks for them or a skill's workflow sets them (wayfinder, triage): a new task
+	otherwise has an empty `Labels:` line. Why: unrequested labels are noise nobody filters on.
 - Labels are free, comma separated, each task's own (subtasks do not inherit them). Reserved: the `wayfinder:` types
 	([tracker.md](tracker.md)) and the triage roles (`needs-triage`, `needs-info`, `ready-for-agent`,
 	`ready-for-human`, `wontfix`, or the project's names for them in `docs/agents/triage-labels.md`).
