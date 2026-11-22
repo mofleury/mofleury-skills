@@ -103,8 +103,8 @@ A task is deleted once it is `done` or `dropped` and its definition serves nothi
 	into that task, a lesson about the project to the project's docs or `CLAUDE.md`.
 2. Take it out of the `depends on` of the tasks `tasks.sh refs <id>` lists (a met dependency is no dependency), and
 	turn links to it into plain text.
-3. Delete it, a task with subtasks whole, with its ID in the commit message so `git log -- <root>/<id>*` finds it.
-	Done when `tasks.sh refs <id>` lists no dependents and `tasks.sh check` passes.
+3. Delete it, a task with subtasks whole, in a commit of its own after the one that closed it. Done when
+	`tasks.sh refs <id>` lists no dependents and `tasks.sh check` passes.
 
 Dropping a task: `dropped; <why>`, and one line in the parent's **Pivots** so the reason outlives the file; then it
 can be deleted at once. Wayfinder tickets follow [tracker.md](tracker.md).
