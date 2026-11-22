@@ -1,15 +1,15 @@
 ---
 name: task-tree
-description: Plan and track work as a tree of markdown task files in the project (`docs/tasks/` by default), any depth, one file per task, with status, dependencies and labels in the first two lines. It is also the project's issue tracker for wayfinder, to-tickets, to-spec and triage. Use when starting a session on planned work, when creating, updating, moving or deleting tasks, and when a skill asks for the issue tracker.
+description: Task tree: the project's planned work as markdown task files in `docs/tasks/`, and its issue tracker for other skills. Use when working on, creating or changing tasks, or when a skill needs the issue tracker.
 ---
 
 # Task tree
 
-Work too big for one session is planned in the project as a tree of tasks, one markdown file per task. A simple
-task is one file; a task with subtasks is a folder. The files are the whole tracker: there is no index, list or
-board anywhere else.
+Planned work lives in the project as a tree of tasks, one markdown file per task: a simple task is a file, a task
+with subtasks is a folder. The files are the whole tracker. The tree stays **lean**: it holds the open work and what
+that work still needs; git history holds the rest.
 
-The root is `docs/tasks/` unless the project's `CLAUDE.md` names another one (then set `TASKS_ROOT` for the script).
+The root is `docs/tasks/`, or the one the project's `CLAUDE.md` names (then set `TASKS_ROOT` for the script).
 
 ## Layout
 
@@ -26,18 +26,19 @@ docs/tasks/
 ```
 
 - A file is a task when its first line starts with `Status:`. Other markdown files in the tree (`DESIGN.md`, notes)
-	are documents of the task whose folder holds them.
-- A folder is a task when it has a `TASK.md`. Every folder holding tasks has one (the root excepted).
-- A simple task that grows subtasks becomes a folder: `git mv x.md x/TASK.md`. Its ID does not change.
+	belong to the task whose folder holds them.
+- A folder is a task when it has a `TASK.md`; every folder holding tasks has one, the root excepted.
+- The folder is the list of its subtasks (`tasks.sh tree <id>`).
+- A simple task that grows subtasks becomes a folder: `git mv x.md x/TASK.md`. Its ID stays the same.
 
 ## IDs
 
-A task's ID is its path from the root, without `.md` or `/TASK.md`: `bead_patterns/generator/sequences`,
+A task's ID is its path from the root without `.md` or `/TASK.md`: `bead_patterns/generator/sequences`,
 `bead_patterns/generator`. The same ID whether the task is a file or a folder.
 
-- Names are lowercase, words joined with `_`, no spaces. Name a task for what it is about, not for its order.
-- Dependencies and links use full IDs, never paths relative to the file.
-- Moving or renaming a task changes its ID: update the tasks that name it (`tasks.sh refs <id>` lists them).
+- Names are lowercase, words joined with `_`, and name the task's subject; order comes from `depends on`.
+- Dependencies and links use full IDs.
+- Moving or renaming a task changes its ID: update every task `tasks.sh refs <id>` lists.
 
 ## The header: two lines
 
@@ -46,148 +47,67 @@ Status: <todo | active | paused | blocked | done | dropped>; depends on: <id, id
 Labels: <label, label, ...>
 ```
 
-- Line 1 is the task's whole current status, **replaced** each time it changes, never appended to. The note is
-	required for `blocked` and `dropped` (why) and `done` (a one-line outcome); otherwise there is none. No progress,
-	results or open questions there: those go in the body (**State**, **Outcome**, **Open questions**). Why: line 1
-	is what every listing shows; details there pile up and go stale.
+- Line 1 is the task's whole current status, replaced as a whole when it changes. Its note is the why for
+	`blocked` and `dropped`, the one-line outcome for `done`, and absent otherwise. Progress, results and open
+	questions go in the body (**State**, **Outcome**, **Open questions**). Why: line 1 is what every listing shows,
+	and anything more piles up there and goes stale.
 - Line 2 is always present, empty or not (`Labels:`), so every task reads the same way.
-- `active`: being worked on (for a wayfinder ticket: claimed). `paused`: stopped on purpose, mostly for tasks with
-	subtasks. `blocked`: waiting on something outside the tree; a dependency on another task is not a block, it is
-	`depends on`.
-- A dependency is done when that task is `done`. Depending on a task with subtasks means depending on all of it.
-	A task's dependencies hold back all its subtasks too. Never depend on your own ancestor: it cannot be done
-	before you.
-- A task with subtasks is `active` while any of them is, and `done` only when all of them are `done` or `dropped`.
-	Its status changes only when its state does: subtasks moving along do not touch it.
-- Labels are free, comma separated, and not inherited. Reserved ones: `wayfinder:map`, `wayfinder:research`,
-	`wayfinder:prototype`, `wayfinder:grilling`, `wayfinder:task`, and the triage roles (`needs-triage`,
-	`needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`, or the project's names for them in
-	`docs/agents/triage-labels.md`).
+- `active`: being worked on (for a wayfinder ticket: claimed). `paused`: stopped on purpose. `blocked`: waiting on
+	something outside the tree; waiting on another task is `depends on`.
+- A dependency is met when that task is `done`; a task with subtasks counts as one, done when it is. A task's
+	dependencies hold back all its subtasks. Dependencies point outside the task's own ancestors, which finish only
+	after it.
+- A task with subtasks is `active` while any of them is, and `done` once all of them are `done` or `dropped`. Its
+	status changes only when its own state does.
+- Labels are free, comma separated, each task's own (subtasks do not inherit them). Reserved: the `wayfinder:` types
+	([tracker.md](tracker.md)) and the triage roles (`needs-triage`, `needs-info`, `ready-for-agent`,
+	`ready-for-human`, `wontfix`, or the project's names for them in `docs/agents/triage-labels.md`).
 
-## Listing and checking
+## The script
 
 `scripts/tasks.sh` in this skill's folder, run from the project root:
 
-- `bash <skill>/scripts/tasks.sh` or `... tree [id]`: the tree (or a subtree) with each task's status line and labels.
-- `... frontier [id]`: the tasks that can start now: `todo`, every dependency done, no subtask of their own, under
-	ancestors that are `todo` or `active` with their own dependencies done. Listed in ID order.
-- `... label <label>`: the tasks carrying a label.
-- `... refs <id>`: the tasks that depend on the task (or on its subtasks), then the files that mention its ID.
-- `... check`: header format, unknown statuses, missing dependencies or cycles, folders without `TASK.md`, tasks done
-	before their subtasks. Run it after reorganizing the tree.
+- `tree [id]`: the tree, or a subtree, with each task's status line and labels.
+- `frontier [id]`: the tasks that can start now: `todo`, dependencies met, no subtasks, under ancestors that are
+	`todo` or `active` with their own dependencies met. In ID order.
+- `label <label>`: the tasks carrying a label.
+- `refs <id>`: the tasks depending on a task (or on its subtasks), then the files mentioning its ID.
+- `check`: header format, statuses, dependencies, folders, parents and subtasks. Every change to the tree ends with
+	`check` passing.
 
-## Task bodies
+## New tasks
 
-A simple task:
+A new task starts as a copy of a template in this skill's `templates/`: `simple.md` for a task, `parent.md` for the
+`TASK.md` of a task with subtasks, `map.md` and `ticket.md` for wayfinder ([tracker.md](tracker.md)). A `TASK.md`'s
+**State** holds only what spans its subtasks.
 
-```markdown
-Status: todo; depends on: none
-Labels:
-
-# Title
-
-**Goal:** one or two lines.
-
-## Done when
-- concrete, checkable conditions
-
-## Approach
-design notes specific to this task
-
-## State
-where it stands now (replaced each session)
-
-## Open questions
--
-
-## Outcome
-(filled when done)
-```
-
-A task with subtasks (`TASK.md`):
-
-```markdown
-Status: active; depends on: none
-Labels:
-
-# Title
-
-Conventions for this tree: the task-tree skill.
-
-**Goal:** what reaching the end looks like.
-
-## Scope
-- In:
-- Not now:
-
-## Pivots
-- YYYY-MM-DD: what changed, why.
-
-## State
-only what spans the subtasks (each subtask has its own); often empty
-
-## Outcome
-(filled when done)
-```
-
-There is no list of subtasks in `TASK.md`: the folder is the list (`tasks.sh tree <id>`).
-
-A wayfinder map and its tickets: see [tracker.md](tracker.md).
+New work found on the way becomes a new task in the folder it belongs to.
 
 ## Sessions
 
-- Start a session with `tasks.sh tree`, then read the `TASK.md` of each ancestor of the task you will work on, top
-	down, then the task. Work on the active task, else the first task of `tasks.sh frontier`, unless the user names one.
-- At the end of a session, replace (do not append to) the task's **State** and update its status line.
-- When a task is done, fill its **Outcome**: what was built, which files, what was learned that affects other tasks.
-	Then set its status line to `done; <one-line outcome>`.
-- A pivot is one line under **Pivots** in the `TASK.md` it concerns (date, what changed, why). If it changes the
-	design, edit `DESIGN.md` too.
-- New work found on the way is a new task in the folder it belongs to, not a paragraph in the current one.
+- **Start**: `tasks.sh tree`, then the `TASK.md` of each ancestor of the task, top down, then the task. The task is
+	the one the user names, else the `active` one, else the first of `tasks.sh frontier`.
+- **Pivot**: one line under **Pivots** in the `TASK.md` it concerns (date, what changed, why). A pivot that changes
+	the design edits `DESIGN.md` too.
+- **End**: the task's **State** replaced with where it stands, its status line current, `tasks.sh check` passing.
+- **Done**: **Outcome** filled (what was built, which files, what was learned that affects other tasks), then the
+	status line `done; <one-line outcome>`.
 
 ## Deleting tasks
 
-The tree holds the work still open and what that work needs, nothing else. Git history keeps the rest.
+A task is deleted once it is `done` or `dropped` and its definition serves nothing still open:
 
-- Delete a task once it is `done` or `dropped` and nothing still needs its definition. Before deleting:
-	- `tasks.sh refs <id>`: remove it from the `depends on` of the tasks that name it (a finished dependency is no
-		dependency), and turn links to it into plain text.
-	- Move what still matters to where it lives on: a decision to the `DESIGN.md` above it, a fact that a later task
-		needs into that task, a lesson about working on the project to the project's docs or `CLAUDE.md`.
-	- Delete it in a commit of its own, or name its ID in the commit message, so `git log -- docs/tasks/<id>*` finds it.
-- Dropping: set `dropped; <why>` and add a line to the parent's **Pivots** (or a wayfinder map's **Out of scope**),
-	so the reason outlives the file. Then it can be deleted at once.
-- A task with subtasks is deleted whole, once it is done.
+1. Move what still matters to where it lives on: a decision to the `DESIGN.md` above it, a fact a later task needs
+	into that task, a lesson about the project to the project's docs or `CLAUDE.md`.
+2. Take it out of the `depends on` of the tasks `tasks.sh refs <id>` lists (a met dependency is no dependency), and
+	turn links to it into plain text.
+3. Delete it, a task with subtasks whole, with its ID in the commit message so `git log -- <root>/<id>*` finds it.
+	Done when `tasks.sh refs <id>` lists no dependents and `tasks.sh check` passes.
 
-## Running tasks in subagents
+Dropping a task: `dropped; <why>`, and one line in the parent's **Pivots** so the reason outlives the file; then it
+can be deleted at once. Wayfinder tickets follow [tracker.md](tracker.md).
 
-When a task is well defined (concrete **Done when**, its decisions settled in the task file or `DESIGN.md`), the
-session may propose running it in a subagent, the main session orchestrating. Why: the subagent's exploration,
-runs and logs stay out of the main session's context, which then stays fresh across many tasks.
-- One task per subagent, one at a time when they touch the same files. Before delegating, write the user's
-	decisions into the task file: the subagent only knows what the files and its brief say.
-- The subagent deletes only files it created itself, by their exact paths as it noted them when they were written,
-	never by a pattern (a timestamp, a glob): the developer may be running the app meanwhile, and its output can land
-	in the same folders (godot-platformer, 2026-11-20: three of the developer's live traces were deleted along with a
-	subagent's own).
-- The subagent does not commit: it reports its changes to the orchestrator. It stops and reports early when the task
-	needs a decision that is the user's (a plan or design change, code changes beyond what the task allows).
-- After each task the orchestrator reviews the changes (closely those outside the task's usual scope), reruns the
-	tests itself, adjusts what needs it, and reports to the user before committing or starting the next task.
+## Subagents
 
-### Lower-tier models (e.g. Sonnet)
-The orchestrator may run a subagent on a lower-tier model to save cost. What worked and what did not
-(godot-platformer, 2026-11-21: three pieces on Sonnet, reviewed by the orchestrator):
-- Give it closed pieces: a decided fix, a recheck with fixed outcomes ("if it fails, fix and add a test; if not,
-	a pin"), a measurement with a stated use. Keep open design work, open-ended diagnosis and judging measurements
-	against design rules for the orchestrator, or for a stronger model.
-- Make "report before doing anything other than the decided approach" a hard stop, not a judgment call. "Stop if
-	the scope grows" was not enough: when the decided rule proved wrong, the subagent built a larger model in its
-	place (about 280 lines) and reported only once done; the developer then dropped it. Why: a lower-tier model
-	treats a stop condition it has to judge as permission to go on.
-- Write into the brief what the files do not say yet: this session's practical lessons (paths a tool cannot read,
-	commands, timeouts), the files it must not touch, and the evidence it must bring back (numbers before and after,
-	a failure shown with the fix reverted). A lead from the orchestrator goes in marked unchecked.
-- Review its claims, not just its diff. Rerun the tests; revert the fix and watch the regression check fail; check
-	physical or geometric claims against the source; check its cleanup (the files it created gone, no one else's
-	touched).
+A well-defined task (concrete **Done when**, its decisions settled in the task file or `DESIGN.md`) may run in a
+subagent, the main session orchestrating: before proposing it, read [subagents.md](subagents.md).
