@@ -15,14 +15,14 @@ The root is `docs/tasks/`, or the one the project's `CLAUDE.md` names (then set 
 
 ```
 docs/tasks/
-	export_fix.md              a simple task
-	bead_patterns/             a task with subtasks
+	01_export_fix.md           a simple task
+	02_bead_patterns/          a task with subtasks
 		TASK.md                  the task itself: header, goal, scope, pivots
 		DESIGN.md                optional, at any level: architecture and decisions, each with its reason
-		pattern_ux.md            a subtask
-		generator/               a subtask with subtasks of its own
+		01_pattern_ux.md         a subtask
+		02_generator/            a subtask with subtasks of its own
 			TASK.md
-			sequences.md
+			01_sequences.md
 ```
 
 - A file is a task when its first line starts with `Status:`. Other markdown files in the tree (`DESIGN.md`, notes)
@@ -33,10 +33,15 @@ docs/tasks/
 
 ## IDs
 
-A task's ID is its path from the root without `.md` or `/TASK.md`: `bead_patterns/generator/sequences`,
-`bead_patterns/generator`. The same ID whether the task is a file or a folder.
+A task's ID is its path from the root without `.md` or `/TASK.md`: `02_bead_patterns/02_generator/01_sequences`,
+`02_bead_patterns/02_generator`. The same ID whether the task is a file or a folder.
 
-- Names are lowercase, words joined with `_`, and name the task's subject; order comes from `depends on`.
+- A name is a two-digit number, then the task's subject, lowercase, words joined with `_`: `48_moves_carried_out`.
+	The title repeats the number: `# 48: Moves carried out`.
+- A new task takes the number after the highest one in its folder, never a gap's (a gap is a deleted task). Why:
+	prose, designs and commit messages say "task 48", which stays findable, and a reused number would make an old
+	mention point at another task.
+- The number is an ID, not an order: order comes from `depends on`.
 - Dependencies and links use full IDs.
 - Moving or renaming a task changes its ID: update every task `tasks.sh refs <id>` lists.
 
